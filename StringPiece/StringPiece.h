@@ -18,7 +18,7 @@ class StringPiece
 
     public:
         StringPiece() = default;
-        explicit StringPiece(const char* string);
+        StringPiece(const char* string);
         StringPiece(const StringPiece& copy);
         StringPiece& operator=(const StringPiece& piece);
         char operator[](unsigned index) const;

@@ -2,14 +2,14 @@
 
 void StringPiece::CopyMemberData(const StringPiece& copy)
 {
-    stpcpy(dataBuffer, copy.dataBuffer);
+    for (size_t i = 0; i < MAX_PIECE_LENGTH; i++)
+        dataBuffer[i] = copy.dataBuffer[i];
     start = copy.start;
     end = copy.end;
 }
 
 void StringPiece::FreeMemberData()
 {
-    dataBuffer[0] = '\0';
     start = 0;
     end = 0;
 }
@@ -21,7 +21,7 @@ unsigned StringPiece::GetBufferIndex(unsigned index) const
 
 unsigned StringPiece::GetBufferIndexBack(unsigned index) const
 {
-    return (MAX_PIECE_LENGTH + end - index) % MAX_PIECE_LENGTH;
+    return (end + MAX_PIECE_LENGTH - index) % MAX_PIECE_LENGTH;
 }
 
 char* StringPiece::GetBufferAddress(int index) const
@@ -31,16 +31,7 @@ char* StringPiece::GetBufferAddress(int index) const
 
 StringPiece::StringPiece(const char* string)
 {
-    size_t len = strlen(string) + 1;
-
-    if(len <= MAX_PIECE_LENGTH)
-    {
-        start = 0;
-        end = start + (len - 1);
-        strcpy(dataBuffer, string);
-    }
-    else
-        FreeMemberData();
+    SetValue(string);
 }
 
 StringPiece::StringPiece(const StringPiece& copy)
@@ -94,22 +85,22 @@ size_t StringPiece::Length() const
 
 void StringPiece::SetValue(const char* value)
 {
-
+    size_t capacity = strlen(value);
+    if (capacity > MAX_PIECE_LENGTH)
+        throw std::runtime_error("String is to big to be a piece");
+    start = 0;
+    end = capacity - 1;
+    for (size_t i = 0; i <= end; i++)
+        dataBuffer[i] = value[i];
+    
 }
 
 const char* StringPiece::Value(char* buffer) const
 {
-    char current = dataBuffer[GetBufferIndex(0)];
-    buffer[0] = current;
-    size_t i = 1;
-    for (;i < StringPiece::MAX_PIECE_LENGTH; i++)
-    {
-        current = dataBuffer[GetBufferIndex(i)];
-        buffer[i] = current;
-        if (current == '\0')
-            break; 
-    }
-        
+    size_t index = 0;
+    for (size_t i = start; i != end; ++i %= MAX_PIECE_LENGTH)
+        buffer[index++] = dataBuffer[i];
+    buffer[index] = '\0';
     return buffer;
 }
 
@@ -131,7 +122,7 @@ char* ToString(char* buffer, unsigned integer)
 
 StringPiece& operator<< (StringPiece& output, unsigned piece)
 {
-    char digits[10]; //ceil(log_10(unsigned max_value)) = 10;
+    char digits[10];
     return operator<<(output, ToString(digits, piece));
 }
 

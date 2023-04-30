@@ -1,92 +1,33 @@
 #include "StringSSO.h"
 
-StringSSO operator+(const StringSSO& lhs, const StringSSO& rhs)
+void StringSSO::CopyMemberData(const StringSSO& copy)
 {
-	size_t thisLen = lhs.Length(), thatLen = rhs.Length();
-	char* result = new char[lhs.Length() + rhs.Length() + 1];
-	
-	for (size_t i = 0; i < thisLen; i++)
-		result[i] = lhs[i];
-
-	for (size_t i = thisLen; i <= thisLen + thatLen + 1; i++)
-		result[i] = rhs[i - thisLen];
-	
-
-	StringSSO resultString(result);
-
-	return resultString;
-}
-
-StringSSO& StringSSO::operator+=(const StringSSO& rhs)
-{
-	size_t thisLen = Length(), thatLen = rhs.Length();
-	size_t resultCapacity = thisLen + thatLen + 1;
-
-	if(resultCapacity <= SMALL_STRING_MAX_SIZE)
+	if(copy.IsSmallString())
 	{
-		for (size_t i = 0; i <= thatLen; i++)
-			SetAt(thisLen + i, rhs[i]);
-		return *this;
-	}
-
-	capacity = resultCapacity;
-	char* result = new char[capacity];
-
-	for (size_t i = 0; i < thisLen; i++)
-		result[i] = (*this)[i];
-
-	for (size_t i = thisLen; i <= thisLen + thatLen + 1; i++)
-		result[i] = rhs[i - thisLen];
-	
-
-	if (!IsSmallString())	
-		delete[] _data;
-
-	_data = result;
-	_length = capacity - 1;
-
-	return *this;
-}
-
-StringSSO::StringSSO()
-{
-	_data = nullptr;
-	SetAt(0, '\0');
-	capacity = SMALL_STRING_MAX_SIZE;
-}
-
-StringSSO::StringSSO(const char* data)
-{
-	size_t len = strlen(data) + 1;
-	if(len <= SMALL_STRING_MAX_SIZE)
-	{
-		for (size_t i = 0; i < len; i++)
-			this->SetAt(i, data[i]);
-		capacity = SMALL_STRING_MAX_SIZE;
+		_length = copy._length;
+		_data = copy._data;
+		_capacity = copy._capacity;
 		return;
 	}
 
-	_data = new char[len];
-	strcpy(_data, data);
-	_length = len - 1;
-	capacity = len;
+	_length = copy._length;
+	_data = new char[_length + 1];
+	strcpy(_data, copy._data);
 }
 
-StringSSO::StringSSO(const StringSSO& stringSSO)
+void StringSSO::MoveMemberData(StringSSO&& copy)
 {
-	CopyMemberData(stringSSO);
-}
-
-StringSSO& StringSSO::operator=(const StringSSO& rhs)
-{
-	if (this != &rhs)
+	if(!copy.IsSmallString())
 	{
-		FreeMemberData();
-        CopyMemberData(rhs);
+		_length = copy._length;
+		_data = copy._data;
+		copy._data = nullptr;
+		_capacity = copy._capacity;
+		return;
 	}
-	return *this;
-}
 
+	//copy static data here
+}
 
 void StringSSO::FreeMemberData()
 {
@@ -95,40 +36,9 @@ void StringSSO::FreeMemberData()
 	_data = nullptr;
 }
 
-StringSSO::~StringSSO()
-{
-	FreeMemberData();
-}
-
-size_t StringSSO::Length() const
-{
-	if(IsSmallString())
-	{
-		size_t len = 0;
-		for (size_t i = 0; (*this)[i] != '\0'; i++, len++);
-		return len;
-	}
-	return _length;
-}
-
 bool StringSSO::IsSmallString() const
 {
-	return capacity == SMALL_STRING_MAX_SIZE;
-}
-
-void StringSSO::CopyMemberData(const StringSSO& copy)
-{
-	if(copy.IsSmallString())
-	{
-		_length = copy._length;
-		_data = copy._data;
-		capacity = copy.capacity;
-		return;
-	}
-
-	_length = copy._length;
-	_data = new char[_length + 1];
-	strcpy(_data, copy._data);
+	return _capacity == SMALL_STRING_MAX_SIZE;
 }
 
 void StringSSO::SetAt(unsigned index, char value)
@@ -156,32 +66,166 @@ void StringSSO::SetAt(unsigned index, char value)
 	}	
 }
 
-char StringSSO::operator[](unsigned index) const 
+StringSSO::StringSSO()
+{
+	_data = nullptr;
+	_length = 0;
+	_capacity = SMALL_STRING_MAX_SIZE;
+}
+
+StringSSO::StringSSO(size_t capacity) : StringSSO()
+{
+	if (capacity > SMALL_STRING_MAX_SIZE)
+	{
+		_data = new char[capacity];
+		_data[0] = '\0';
+		_length = 0;
+		_capacity = capacity;
+	}
+	
+}
+
+StringSSO::StringSSO(const char* data)
+{
+	size_t capacity = strlen(data) + 1;
+	if(capacity <= SMALL_STRING_MAX_SIZE)
+	{
+		for (size_t i = 0; i < capacity; i++)
+			SetAt(i, data[i]);
+		_capacity = SMALL_STRING_MAX_SIZE;
+		return;
+	}
+	
+	_data = new char[capacity];
+	strcpy(_data, data);
+	_length = capacity - 1;
+	_capacity = capacity;
+}
+
+StringSSO::StringSSO(const StringSSO& string)
+{
+	CopyMemberData(string);
+}
+
+StringSSO::StringSSO(StringSSO&& temptorary)
+{
+	MoveMemberData(std::move(temptorary));
+}
+
+
+size_t StringSSO::Length() const
 {
 	if(IsSmallString())
 	{
-		size_t mask = 255;
-
-		size_t nthByte = 0;
-		size_t bitshiftCount = 0;
-		if(index < sizeof(_data))
-		{
-			bitshiftCount = sizeof(_data) * index;
-			mask <<= bitshiftCount;
-			nthByte = (size_t)_data & mask;
-		}
-		else
-		{
-			bitshiftCount = sizeof(_length) * (index - sizeof(_data));
-			mask <<= bitshiftCount;
-			nthByte = _length & mask;
-		}	
-		size_t res;
-		res = nthByte >> bitshiftCount;
-		return res == 0 ? '\0' : res;
-
+		size_t len = 0;
+		for (size_t i = 0; (*this)[i] != '\0'; i++, len++);
+			return len;
 	}
-	return _data[index];
+	return _length;
+}
+
+StringSSO& StringSSO::operator=(const StringSSO& rhs)
+{
+	if (this != &rhs)
+	{
+		FreeMemberData();
+        CopyMemberData(rhs);
+	}
+	return *this;
+}
+
+StringSSO& StringSSO::operator=(StringSSO&& temporary)
+{
+	if (this != &temporary)
+	{
+		FreeMemberData();
+        MoveMemberData(std::move(temporary));
+	}
+	return *this;
+}
+
+StringSSO& StringSSO::operator+=(const StringSSO& rhs)
+{
+	size_t thisLen = Length(), thatLen = rhs.Length();
+	size_t resultCapacity = thisLen + thatLen + 1;
+
+	if(resultCapacity <= SMALL_STRING_MAX_SIZE)
+	{
+		for (size_t i = 0; i <= thatLen; i++)
+			(*this)[thisLen + i] =  rhs[i];
+		return *this;
+	}
+
+	_capacity = resultCapacity;
+	char* result = new char[_capacity];
+
+	for (size_t i = 0; i < thisLen; i++)
+		result[i] = (*this)[i];
+
+	for (size_t i = thisLen; i <= thisLen + thatLen + 1; i++)
+		result[i] = rhs[i - thisLen];
+	
+
+	if (!IsSmallString())	
+		delete[] _data;
+
+	_data = result;
+	_length = _capacity - 1;
+
+	return *this;
+}
+
+char StringSSO::operator[](unsigned index) const 
+{
+	if(!IsSmallString())
+		return _data[index];
+
+	size_t mask = 255;
+	size_t nthByte = 0;
+	size_t bitshiftCount = 0;
+	if(index < sizeof(_data))
+	{
+		bitshiftCount = sizeof(8) * index;
+		mask <<= bitshiftCount;
+		nthByte = (size_t)_data & mask;
+	}
+	else
+	{
+		bitshiftCount = sizeof(_length) * (index - sizeof(_data));
+		mask <<= bitshiftCount;
+		nthByte = _length & mask;
+	}	
+	size_t res;
+	res = nthByte >> bitshiftCount;
+	return res == 0 ? '\0' : res;	
+}
+
+char& StringSSO::operator[](unsigned index)
+{
+	if (!IsSmallString())
+		return _data[index];
+
+	if(index < sizeof(_data))
+		return ((char*)(&_data))[index];
+	else
+		return ((char*)(&_length))[index - sizeof(_data)];
+}
+
+StringSSO operator+(const StringSSO& lhs, const StringSSO& rhs)
+{
+	size_t thisLen = lhs.Length(), thatLen = rhs.Length();
+	char* result = new char[lhs.Length() + rhs.Length() + 1];
+	
+	for (size_t i = 0; i < thisLen; i++)
+		result[i] = lhs[i];
+
+	for (size_t i = thisLen; i <= thisLen + thatLen + 1; i++)
+		result[i] = rhs[i - thisLen];
+	
+
+	StringSSO resultString(result);
+
+	return resultString;
 }
 
 std::ostream& operator<<(std::ostream& output, const StringSSO& string)
@@ -198,4 +242,9 @@ std::ostream& operator<<(std::ostream& output, const StringSSO& string)
 		return output;
 	}
     return output << string._data;
+}
+
+StringSSO::~StringSSO()
+{
+	FreeMemberData();
 }
