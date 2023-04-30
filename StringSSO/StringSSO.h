@@ -1,6 +1,5 @@
 #include <iostream>
-#include <stdexcept>
-#include <cstring>
+#include <cstring> //the code is compiled in g++ which requires this for strlen() strcat() and strcmp()
 
 class StringSSO
 {
@@ -17,7 +16,6 @@ class StringSSO
 	    void FreeMemberData();
 		void MoveMemberData(StringSSO&& temporary);
 		bool IsSmallString() const;
-		void SetAt(unsigned undex, char value);
 
     public:
 

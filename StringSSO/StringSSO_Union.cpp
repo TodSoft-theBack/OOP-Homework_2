@@ -25,7 +25,14 @@ void StringSSOUnion::FreeMemberData()
 
 void StringSSOUnion::MoveMemberData(StringSSOUnion&& temporary)
 {
-	
+	if (!IsSmallString())
+	{
+		_data._dynamic = temporary._data._dynamic;
+		temporary._data._dynamic._string  = nullptr;
+		_capacity = temporary._capacity;
+	}
+
+	CopyMemberData(temporary);
 }
 
 bool StringSSOUnion::IsSmallString() const
@@ -122,13 +129,13 @@ StringSSOUnion& StringSSOUnion::operator+=(const StringSSOUnion& rhs)
 	size_t thisLen = Length(), thatLen = rhs.Length();
 	size_t resultCapacity = thisLen + thatLen + 1;
 
-	if (resultCapacity <= SMALL_STRING_MAX_SIZE)
+	if (IsSmallString() && resultCapacity <= SMALL_STRING_MAX_SIZE)
 	{
 		strcat(_data._static, rhs.Data());
 		return *this;
 	}
 
-	if (resultCapacity <= _capacity)
+	if (!IsSmallString() && resultCapacity <= _capacity)
 	{
 		strcat(_data._dynamic._string, rhs.Data());
 		_data._dynamic._length = resultCapacity - 1;
@@ -184,15 +191,14 @@ std::ostream& operator<<(std::ostream& output, const StringSSOUnion& string)
    
 }
 
-std::istream& operator>>(std::istream& output, StringSSOUnion& string)
+std::istream& operator>>(std::istream& input, StringSSOUnion& string)
 {
 	if(string.IsSmallString())
-		return output >> string._data._static;
+		return input >> string._data._static;
 	else
 	{
-		return output >> string._data._dynamic._string;
+		return input >> string._data._dynamic._string;
 	}
-   
 }
 
 StringSSOUnion::~StringSSOUnion()

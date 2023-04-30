@@ -1,11 +1,12 @@
 #include <iostream>
-#include <cstring>
+#include <cstring> //the code is compiled in g++ which requires this for strlen() strcat() and strcmp()
 
 class StringSSOUnion
 {
     static const unsigned SMALL_STRING_MAX_SIZE = sizeof(size_t) + sizeof(char*);
 
     private:
+
 		//Data
 		union 
 		{

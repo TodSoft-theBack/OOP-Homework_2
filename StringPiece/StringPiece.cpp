@@ -86,20 +86,23 @@ size_t StringPiece::Length() const
 void StringPiece::SetValue(const char* value)
 {
     size_t capacity = strlen(value);
-    if (capacity > MAX_PIECE_LENGTH)
-        throw std::runtime_error("String is to big to be a piece");
     start = 0;
-    end = capacity - 1;
-    for (size_t i = 0; i <= end; i++)
+    if (capacity > MAX_PIECE_LENGTH)
+        end = MAX_PIECE_LENGTH - 1;
+    else
+        end = capacity - 1;
+    for (size_t i = start; i <= end; i++)
         dataBuffer[i] = value[i];
     
 }
 
 const char* StringPiece::Value(char* buffer) const
 {
-    size_t index = 0;
-    for (size_t i = start; i != end; ++i %= MAX_PIECE_LENGTH)
+    size_t index = 1;
+    buffer[0] = dataBuffer[start];
+    for (size_t i = (start + 1) % MAX_PIECE_LENGTH; i != end; ++i %= MAX_PIECE_LENGTH)
         buffer[index++] = dataBuffer[i];
+    buffer[index++] = dataBuffer[end];
     buffer[index] = '\0';
     return buffer;
 }
@@ -129,46 +132,37 @@ StringPiece& operator<< (StringPiece& output, unsigned piece)
 StringPiece& operator<< (StringPiece& output, const char* piece)
 {
     size_t outLen = output.Length(), pieceLen = strlen(piece);
-    size_t capacity = outLen + pieceLen + 1;
+    size_t newEnd = (output.end + pieceLen) % StringPiece::MAX_PIECE_LENGTH;
 
-    char* buffer = output.GetBufferAddress(output.end);
-    for (size_t i = 0; i < pieceLen && output.Length() <= StringPiece::MAX_PIECE_LENGTH; i++)
-        buffer[i] = piece[i];
-        
+    size_t index = 0;
+    for (size_t i = output.end; index < pieceLen ; ++i %= StringPiece::MAX_PIECE_LENGTH)
+    {
+        output.dataBuffer[i] = piece[index++];
+    }
+    
+    output.end = newEnd;
     return output;
     
 }
 
 StringPiece& operator>> (unsigned piece, StringPiece& output)
 {
-    char digits[10]; //ceil(log_10(unsigned max_value)) = 10;
+    char digits[16];
     return operator>>(ToString(digits, piece), output);
 }
 
 StringPiece& operator>> (const char* piece, StringPiece& output)
 {
     size_t outLen = output.Length(), pieceLen = strlen(piece);
-    size_t capacity = outLen + pieceLen + 1;
-    
-    if (capacity <=  StringPiece::MAX_PIECE_LENGTH)
-    {
-        char* address = output.GetBufferAddress(output.start - pieceLen);
-        if (address < (char*)output.dataBuffer)
-            address += StringPiece::MAX_PIECE_LENGTH;
-            
-        strcpy(address, piece);
-        output.start = address - (char*)output.dataBuffer;
-    }
+
+    size_t newStart = (output.start + StringPiece::MAX_PIECE_LENGTH - pieceLen) % StringPiece::MAX_PIECE_LENGTH;
+
+    size_t index = 0;
+    for (size_t i = newStart; index < pieceLen ; ++i %= StringPiece::MAX_PIECE_LENGTH)
+        output.dataBuffer[i] = piece[index++];
+    output.start = newStart;
 
     return output;
-}
-
-void StringPiece::Print(std::ostream& output) const
-{
-    size_t len = Length();
-    for (size_t i = 0; i < len; i++)
-        output << dataBuffer[GetBufferIndex(i)];
-    
 }
 
 StringPiece::~StringPiece()

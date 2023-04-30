@@ -1,8 +1,49 @@
 #include "StringBuilder.h"
 
+void StringBuilder::CopyMemberData(const StringBuilder& copy)
+{
+    _pieces = new StringPiece*[copy._capacity];
+    for (size_t i = 0; i < copy._count; i++)
+        _pieces[i] = copy._pieces[i];
+    _capacity = copy._capacity;
+    _count = copy._count;
+}
+
+void StringBuilder::MoveMemberData(StringBuilder&& temporary)
+{
+    _pieces = temporary._pieces;
+    temporary._pieces = nullptr;
+    _capacity = temporary._capacity;
+    _count = temporary._count;
+}
+
+void StringBuilder::FreeMemberData()
+{
+    for (size_t i = 0; i < _count; i++)
+    {
+        delete _pieces[i];
+        _pieces[i] = nullptr;
+    }
+    delete[] _pieces;
+    _pieces = nullptr;
+}
+
 StringBuilder::StringBuilder(unsigned capacity): _capacity(capacity)
 {
     _pieces = new StringPiece*[_capacity];
+    for (size_t i = 0; i < _capacity; i++)
+        _pieces[i] = nullptr;
+    
+}
+
+StringBuilder::StringBuilder(const StringBuilder& copy)
+{
+    CopyMemberData(copy);
+}
+
+StringBuilder::StringBuilder(StringBuilder&& temporary)
+{
+    MoveMemberData(std::move(temporary));
 }
 
 void StringBuilder::AddPiece(const char* piece)
@@ -40,7 +81,7 @@ void StringBuilder::Swap(unsigned first, unsigned second)
     _pieces[second] = temp;
 }
 
-size_t StringBuilder::CurrentStringLength() const
+size_t StringBuilder::StringLength() const
 {
     size_t aggregateLength = 0;
 
@@ -54,13 +95,13 @@ size_t StringBuilder::CurrentStringLength() const
     return aggregateLength;
 }
 
-U_String StringBuilder::CurrentString() const
+U_String StringBuilder::String() const
 {
-    U_String result;
+    U_String result(StringLength() + 1);
     for (size_t i = 0; i < _count; i++)
         if (_pieces[i] != nullptr)
         {
-            char value[StringPiece::MAX_PIECE_LENGTH];
+            char value[StringPiece::MAX_PIECE_LENGTH + 1];
             result += _pieces[i]->Value(value);
         }
         else
@@ -75,6 +116,25 @@ U_String StringBuilder::CurrentString() const
     return result;
 }
 
+StringBuilder& StringBuilder::operator=(const StringBuilder& stringBuilder)
+{
+    if (this != &stringBuilder)
+    {
+        FreeMemberData();
+        CopyMemberData(stringBuilder);
+    }
+    return *this;
+}
+StringBuilder& StringBuilder::operator=(StringBuilder&& temporary)
+{
+    if (this != &temporary)
+    {
+        FreeMemberData();
+        MoveMemberData(std::move(temporary));
+    }
+    return *this;
+}
+
 StringPiece StringBuilder::operator[](unsigned index) const
 {
     return *_pieces[index];
@@ -87,12 +147,5 @@ StringPiece& StringBuilder::operator[](unsigned index)
 
 StringBuilder::~StringBuilder()
 {
-    for (size_t i = 0; i < _count; i++)
-    {
-        delete _pieces[i];
-        _pieces[i] = nullptr;
-    }
-    delete[] _pieces;
-    _pieces = nullptr;
-    
+    FreeMemberData();
 }

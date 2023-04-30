@@ -30,8 +30,6 @@ class StringPiece
         void SetValue(const char* value);
         const char* Value(char* buffer) const;
 
-        void Print(std::ostream& output) const;
-
         friend StringPiece& operator<< (StringPiece& output, const char* piece);
         friend StringPiece& operator>> (const char* piece, StringPiece& output);
 

@@ -1,79 +1,18 @@
 #include "U_String.h"
 
-
-U_String operator+(const U_String& lhs, const U_String& rhs)
+void U_String::CopyMemberData(const U_String& copy)
 {
-	char* result = new char[lhs.Length() + rhs.Length() + 1];
-	result[0] = '\0';
-	strcat(result, lhs.Data());
-	strcat(result, rhs.Data());
-
-	U_String resultString(result);
-	return resultString;
-}
-
-U_String& U_String::operator+=(const U_String& other)
-{
-	size_t thisLen = Length(), thatLen = other.Length();
-	size_t resultCapacity = thisLen + thatLen + 1;
-
-	if (resultCapacity <= SMALL_STRING_MAX_SIZE)
+	if(copy.IsSmallString())
 	{
-		strcat(_data._static, other.Data());
-		return *this;
+		strcpy(_data._static, copy._data._static);
+		_capacity = SMALL_STRING_MAX_SIZE;
 	}
-	
-	char* result = new char[resultCapacity];
-	result[0] = '\0';
-	strcat(result, Data());
-	strcat(result, other.Data());
-
-	if (!IsSmallString())
-		delete[] _data._dynamic._string;
-	
-	_data._dynamic._string = result;
-	_data._dynamic._length = resultCapacity - 1;
-	capacity = resultCapacity;
-
-	return *this;
-}
-
-U_String::U_String()
-{
-	capacity = SMALL_STRING_MAX_SIZE;
-	_data._static[0] = '\0';
-}
-U_String::U_String(const char* data)
-{
-	size_t len = strlen(data) + 1;
-	capacity = SMALL_STRING_MAX_SIZE;
-	if(len <= SMALL_STRING_MAX_SIZE)
-		strcpy(_data._static, data);
 	else
 	{
-		_data._dynamic._string = new char[len];
-		_data._dynamic._length = len - 1;
-		strcpy(_data._dynamic._string, data);
-		capacity = len;
+		_capacity = copy._capacity;
+		_data._dynamic._string = new char[_capacity];
 	}
-	
 }
-
-U_String::U_String(const U_String& U_String)
-{
-	CopyMemberData(U_String);
-}
-
-U_String& U_String::operator=(const U_String& U_String)
-{
-	if (this != &U_String)
-	{
-		FreeMemberData();
-        CopyMemberData(U_String);
-	}
-	return *this;
-}
-
 
 void U_String::FreeMemberData()
 {
@@ -84,9 +23,71 @@ void U_String::FreeMemberData()
 	}
 }
 
-U_String::~U_String()
+void U_String::MoveMemberData(U_String&& temporary)
 {
-	FreeMemberData();
+	if (!IsSmallString())
+	{
+		_data._dynamic = temporary._data._dynamic;
+		temporary._data._dynamic._string  = nullptr;
+		_capacity = temporary._capacity;
+	}
+
+	CopyMemberData(temporary);
+}
+
+bool U_String::IsSmallString() const
+{
+	return _capacity == SMALL_STRING_MAX_SIZE;
+}
+
+U_String::U_String()
+{
+	_capacity = SMALL_STRING_MAX_SIZE;
+	_data._static[0] = '\0';
+}
+
+U_String::U_String(size_t capacity)
+{
+	if (capacity <= SMALL_STRING_MAX_SIZE)
+	{
+		_capacity = SMALL_STRING_MAX_SIZE;
+		_data._static[0] = '\0';
+	}
+	else
+	{
+		_capacity = capacity;
+		_data._dynamic._string = new char[_capacity];
+		_data._dynamic._length = 0;
+		_data._dynamic._string[0] = '\0';
+	}
+}
+
+U_String::U_String(const char* data)
+{
+	size_t capacity = strlen(data) + 1;
+	if(capacity <= SMALL_STRING_MAX_SIZE)
+	{
+		strcpy(_data._static, data);
+		_capacity = SMALL_STRING_MAX_SIZE;
+	}		
+	else
+	{
+		_data._dynamic._string = new char[capacity];
+		_data._dynamic._length = capacity - 1;
+		strcpy(_data._dynamic._string, data);
+		_capacity = capacity;
+	}
+	
+}
+
+U_String::U_String(const U_String& string)
+{
+	CopyMemberData(string);
+}
+
+U_String::U_String(U_String&& temporary)
+{
+	MoveMemberData(std::move(temporary));
 }
 
 size_t U_String::Length() const
@@ -95,6 +96,7 @@ size_t U_String::Length() const
 		return strlen(_data._static);
 	return _data._dynamic._length;
 }
+
 const char* U_String::Data() const
 {
 	if (IsSmallString())
@@ -102,23 +104,57 @@ const char* U_String::Data() const
 	return _data._dynamic._string;
 }
 
-bool U_String::IsSmallString() const
+U_String& U_String::operator=(const U_String& string)
 {
-	return capacity	== SMALL_STRING_MAX_SIZE;
+	if (this != &string)
+	{
+		FreeMemberData();
+        CopyMemberData(string);
+	}
+	return *this;
 }
 
-void U_String::CopyMemberData(const U_String& copy)
+U_String& U_String::operator=(U_String&& string)
 {
-	if(copy.IsSmallString())
+	if (this != &string)
 	{
-		strcpy(_data._static, copy._data._static);
-		capacity = SMALL_STRING_MAX_SIZE;
+		FreeMemberData();
+        MoveMemberData(std::move(string));
 	}
-	else
+	return *this;
+}
+
+U_String& U_String::operator+=(const U_String& rhs)
+{
+	size_t thisLen = Length(), thatLen = rhs.Length();
+	size_t resultCapacity = thisLen + thatLen + 1;
+
+	if (IsSmallString() && resultCapacity <= SMALL_STRING_MAX_SIZE)
 	{
-		capacity = copy.capacity;
-		_data._dynamic._string = new char[capacity];
+		strcat(_data._static, rhs.Data());
+		return *this;
 	}
+
+	if (!IsSmallString() && resultCapacity <= _capacity)
+	{
+		strcat(_data._dynamic._string, rhs.Data());
+		_data._dynamic._length = resultCapacity - 1;
+		return *this;
+	}
+	
+	char* result = new char[resultCapacity];
+	result[0] = '\0';
+	strcat(result, Data());
+	strcat(result, rhs.Data());
+
+	if (!IsSmallString())
+		delete[] _data._dynamic._string;
+	
+	_data._dynamic._string = result;
+	_data._dynamic._length = resultCapacity - 1;
+	_capacity = resultCapacity;
+
+	return *this;
 }
 
 char& U_String::operator[](unsigned index)
@@ -137,6 +173,15 @@ char U_String::operator[](unsigned index) const
 		return _data._dynamic._string[index];
 }
 
+U_String operator+(const U_String& lhs, const U_String& rhs)
+{
+	size_t capacity = lhs.Length() + rhs.Length() + 1;
+	U_String result(capacity);
+	result += lhs.Data();
+	result += rhs.Data();
+	return result;
+}
+
 std::ostream& operator<<(std::ostream& output, const U_String& string)
 {
 	if(string.IsSmallString())
@@ -148,14 +193,15 @@ std::ostream& operator<<(std::ostream& output, const U_String& string)
 
 std::istream& operator>>(std::istream& input, U_String& string)
 {
-    if(string.IsSmallString())
+	if(string.IsSmallString())
 		return input >> string._data._static;
 	else
 	{
-        char buffer[256];
-        input >> buffer;
-        string = buffer;
-        return input;
-    }
-   
+		return input >> string._data._dynamic._string;
+	}
+}
+
+U_String::~U_String()
+{
+	FreeMemberData();
 }

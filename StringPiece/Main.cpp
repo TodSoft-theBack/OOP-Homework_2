@@ -14,15 +14,15 @@ int main()
     " Hello " >> builder[1];
     10 >> builder[2];
 
-    U_String result1 = builder.CurrentString();
+    U_String result1 = builder.String();
     std::cout << result1 << std::endl;
 
     builder.Swap(1,2);
-    U_String result2 = builder.CurrentString();
+    U_String result2 = builder.String();
     std::cout << result2 << std::endl;
 
     builder.RemoveAt(1);
-    U_String result3 = builder.CurrentString();
+    U_String result3 = builder.String();
     std::cout << result3 << std::endl;
 
     return 0;
